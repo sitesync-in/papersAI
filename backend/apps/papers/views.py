@@ -113,6 +113,19 @@ class PaperDownloadView(APIView):
         if paper.status != Paper.STATUS_READY:
             return Response({'error': 'Paper is not ready yet'}, status=status.HTTP_400_BAD_REQUEST)
 
+        import os
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        
+        font_path = os.path.join(settings.BASE_DIR, 'apps', 'papers', 'fonts', 'NotoSansDevanagari-Regular.ttf')
+        try:
+            pdfmetrics.registerFont(TTFont('NotoDevanagari', font_path))
+            font_reg = 'NotoDevanagari'
+            font_bold = 'NotoDevanagari'
+        except Exception:
+            font_reg = 'Helvetica'
+            font_bold = 'Helvetica-Bold'
+
         buffer = io.BytesIO()
         p = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
@@ -123,19 +136,19 @@ class PaperDownloadView(APIView):
 
         def new_page(y):
             p.showPage()
-            p.setFont('Helvetica', 10)
+            p.setFont(font_reg, 10)
             return height - 2 * cm
 
         # ===== HEADER SECTION =====
         y = height - 1.5 * cm
 
         # School/Board header line
-        p.setFont('Helvetica-Bold', 12)
+        p.setFont(font_bold, 12)
         p.drawCentredString(width / 2, y, paper.board or 'Board of Secondary Education')
         y -= 18
 
         # Title
-        p.setFont('Helvetica-Bold', 16)
+        p.setFont(font_bold, 16)
         doc_type = request.GET.get('type', 'paper')
         title_suffix = 'Answer Key' if doc_type == 'answer_key' else 'Examination Paper'
         title = paper.title + ' - ' + title_suffix if paper.title else f'{paper.subject} {title_suffix}'
@@ -143,7 +156,7 @@ class PaperDownloadView(APIView):
         y -= 20
 
         # Subject / Class / Meta info
-        p.setFont('Helvetica', 10)
+        p.setFont(font_reg, 10)
         p.drawCentredString(width / 2, y,
             f'Class: {paper.class_name}  |  Subject: {paper.subject}  |  Difficulty: {paper.difficulty}')
         y -= 16
@@ -158,10 +171,10 @@ class PaperDownloadView(APIView):
         y -= 8
 
         # General instructions
-        p.setFont('Helvetica-Bold', 9)
+        p.setFont(font_bold, 9)
         p.drawString(margin_left, y, 'General Instructions:')
         y -= 14
-        p.setFont('Helvetica', 8)
+        p.setFont(font_reg, 8)
         instructions = [
             '1. All questions are compulsory unless otherwise stated.',
             '2. Marks are indicated against each question.',
@@ -179,11 +192,11 @@ class PaperDownloadView(APIView):
         y -= 18
 
         # ===== PAPER CONTENT =====
-        def draw_text_block(text, x, y, font='Helvetica', size=10, max_width=None, line_height=14):
+        def draw_text_block(text, x, y, size=10, max_width=None, line_height=14):
             """Draw text with proper word wrapping and page breaks."""
             if max_width is None:
                 max_width = usable_width
-            p.setFont(font, size)
+            p.setFont(font_reg, size)
             for paragraph in text.split('\n'):
                 paragraph = paragraph.strip()
                 if not paragraph:
@@ -200,16 +213,16 @@ class PaperDownloadView(APIView):
                     y -= 6
                     if y < page_bottom:
                         y = new_page(y)
-                    p.setFont('Helvetica-Bold', 11)
+                    p.setFont(font_bold, 11)
                     p.drawString(x, y, paragraph)
                     y -= 4
                     # Draw subtle underline
                     p.setStrokeColorRGB(0.8, 0.72, 0.3)  # Gold
                     p.setLineWidth(0.8)
-                    text_w = p.stringWidth(paragraph, 'Helvetica-Bold', 11)
+                    text_w = p.stringWidth(paragraph, font_bold, 11)
                     p.line(x, y, x + text_w, y)
                     y -= line_height
-                    p.setFont(font, size)
+                    p.setFont(font_reg, size)
                     continue
 
                 # Check if it's a question line (starts with number or Q)
@@ -219,9 +232,9 @@ class PaperDownloadView(APIView):
                 )
                 if is_question:
                     y -= 4
-                    p.setFont('Helvetica-Bold', 10)
+                    p.setFont(font_bold, 10)
                 else:
-                    p.setFont(font, size)
+                    p.setFont(font_reg, size)
 
                 # Word wrap
                 words = paragraph.split()
@@ -244,7 +257,7 @@ class PaperDownloadView(APIView):
 
                 # Reset font after question
                 if is_question:
-                    p.setFont(font, size)
+                    p.setFont(font_reg, size)
 
             return y
 
@@ -260,10 +273,10 @@ class PaperDownloadView(APIView):
         p.setLineWidth(0.5)
         p.line(margin_left, y, margin_right, y)
         y -= 14
-        p.setFont('Helvetica-Oblique', 8)
+        p.setFont(font_reg, 8)
         p.drawCentredString(width / 2, y, '--- End of Paper ---')
         y -= 12
-        p.setFont('Helvetica', 7)
+        p.setFont(font_reg, 7)
         p.drawCentredString(width / 2, y, f'Generated by papersAI | {paper.board} | {paper.class_name} | {paper.subject}')
 
         p.save()
