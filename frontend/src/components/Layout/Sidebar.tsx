@@ -5,7 +5,7 @@ import styles from './Sidebar.module.css';
 
 import { useTranslation } from 'react-i18next';
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean, onClose?: () => void }) {
   const pathname = usePathname();
   const { t } = useTranslation();
 
@@ -19,13 +19,16 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className={styles.sidebar}>
-      <div className={styles.logo}>
-        <div className={styles.logoIcon}>✦</div>
-        <div>
-          <div className={styles.logoText}>papersAI</div>
-          <div className={styles.logoSub}>{t('sidebar.teacher_panel')}</div>
+    <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
+      <div className={styles.logoRow}>
+        <div className={styles.logo}>
+          <div className={styles.logoIcon}>✦</div>
+          <div>
+            <div className={styles.logoText}>papersAI</div>
+            <div className={styles.logoSub}>{t('sidebar.teacher_panel')}</div>
+          </div>
         </div>
+        <button className={styles.closeBtn} onClick={onClose}>×</button>
       </div>
 
       <nav className={styles.nav}>
