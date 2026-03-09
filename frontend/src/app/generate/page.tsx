@@ -30,7 +30,7 @@ function GenerateContent() {
   ];
 
   const genSteps = [
-    'Connecting to RajMegh...',
+    'Connecting to AI Core...',
     'Analyzing Syllabus...',
     'Drafting Questions...',
     'Generating Answer Key...',
