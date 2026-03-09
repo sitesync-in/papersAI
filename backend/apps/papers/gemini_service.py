@@ -6,7 +6,7 @@ from google.genai import types
 
 def generate_paper(board: str, class_name: str, subject: str,
                    difficulty: str = 'balanced', topics: str = '',
-                   adhere_marking_scheme: bool = True) -> dict:
+                   adhere_marking_scheme: bool = True, preferred_language: str = 'English') -> dict:
     """
     Core Gemini AI paper generation function.
     Returns dict with keys: title, paper_text, answer_key_text, sections
@@ -28,8 +28,10 @@ def generate_paper(board: str, class_name: str, subject: str,
 
     topics_note = f"\nFocus especially on these topics: {topics}." if topics.strip() else ""
 
-    prompt = f"""You are an expert curriculum designer for {board} board ({class_name}, {subject}).
+    language_note = f"\nCRITICAL INSTRUCTION: You MUST generate the ENTIRE QUESTION PAPER AND ANSWER KEY entirely in {preferred_language}. This includes instructions, section headers, questions, options, and answers. Do NOT use English unless the subject itself is English.\n"
 
+    prompt = f"""You are an expert curriculum designer for {board} board ({class_name}, {subject}).
+{language_note}
 Generate a complete examination question paper with the following requirements:
 - Board: {board}
 - Class: {class_name}

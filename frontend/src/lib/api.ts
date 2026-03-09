@@ -36,6 +36,7 @@ export interface RegisterPayload {
   username: string; email: string; password: string;
   first_name: string; last_name: string;
   school_name?: string; district?: string;
+  preferred_language?: string;
 }
 export interface AuthResponse {
   access: string; refresh: string;
