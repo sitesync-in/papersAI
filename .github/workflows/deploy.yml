@@ -27,6 +27,9 @@ jobs:
             echo "Building new Docker images..."
             docker compose build  # Build BEFORE taking down — minimizes downtime
 
+            echo "Fixing database volume permissions..."
+            docker compose run --rm --user root backend chown -R 1000:1000 /app/data
+
             echo "Applying database migrations..."
             docker compose run --rm backend python manage.py migrate --noinput
 
