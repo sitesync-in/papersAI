@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Login form
   const [email, setEmail] = useState('');
@@ -27,6 +28,21 @@ export default function LoginPage() {
   const [schoolName, setSchoolName] = useState('');
   const [district, setDistrict] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState('en');
+
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return null;
+    let score = 0;
+    if (pass.length > 7) score++;
+    if (/[A-Z]/.test(pass)) score++;
+    if (/[0-9]/.test(pass)) score++;
+    if (/[^A-Za-z0-9]/.test(pass)) score++;
+
+    if (score <= 1) return { label: 'Weak', color: '#ef4444', width: '25%' };
+    if (score === 2) return { label: 'Fair', color: '#f59e0b', width: '50%' };
+    if (score === 3) return { label: 'Good', color: '#3b82f6', width: '75%' };
+    return { label: 'Strong', color: '#10b981', width: '100%' };
+  };
+  const strength = getPasswordStrength(password);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,14 +80,18 @@ export default function LoginPage() {
     } catch (err: any) {
       let errorMsg = 'Registration failed. Check your details.';
       if (err && typeof err === 'object') {
-        const messages = [];
+        const messages: string[] = [];
         // Skip HTTP status codes or generic keys if needed, but usually DRF returns field arrays
         for (const [key, val] of Object.entries(err)) {
           if (key === 'status') continue;
-          if (Array.isArray(val)) messages.push(...val);
-          else if (typeof val === 'string') messages.push(val);
+          const displayKey = key.charAt(0).toUpperCase() + key.replace(/_/g, ' ').slice(1);
+          if (Array.isArray(val)) {
+            val.forEach(v => messages.push(`${displayKey}: ${v}`));
+          } else if (typeof val === 'string') {
+            messages.push(`${displayKey}: ${val}`);
+          }
         }
-        if (messages.length > 0) errorMsg = messages.join(' ');
+        if (messages.length > 0) errorMsg = messages.join(' | ');
       }
       setError(errorMsg);
     } finally {
@@ -136,8 +156,14 @@ export default function LoginPage() {
                     Password
                     <a href="#" className={styles.forgot}>Forgot?</a>
                   </label>
-                  <input type="password" className="input-field" placeholder="••••••••"
-                    value={password} onChange={e => setPassword(e.target.value)} required />
+                  <div style={{ position: 'relative' }}>
+                    <input type={showPassword ? "text" : "password"} className="input-field" placeholder="••••••••"
+                      value={password} onChange={e => setPassword(e.target.value)} required />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
                 </div>
                 <button type="submit" className={`btn btn-primary btn-lg ${styles.submitBtn}`} disabled={loading}>
                   {loading ? 'Signing in...' : 'Sign In'}
@@ -165,8 +191,25 @@ export default function LoginPage() {
                 </div>
                 <div className={styles.field}>
                   <label className="label">Password</label>
-                  <input type="password" className="input-field" placeholder="••••••••"
-                    value={password} onChange={e => setPassword(e.target.value)} required />
+                  <div style={{ position: 'relative' }}>
+                    <input type={showPassword ? "text" : "password"} className="input-field" placeholder="••••••••"
+                      value={password} onChange={e => setPassword(e.target.value)} required />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  {strength && (
+                    <div style={{ marginTop: '8px', fontSize: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ color: '#64748b' }}>Password Strength:</span>
+                        <span style={{ color: strength.color, fontWeight: 600 }}>{strength.label}</span>
+                      </div>
+                      <div style={{ height: '4px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', background: strength.color, width: strength.width, transition: 'all 0.3s ease' }} />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className={styles.field}>
                   <label className="label">Full Name</label>
