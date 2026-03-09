@@ -1,4 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Fall back to relative path in production so Nginx can proxy to backend
+const DEFAULT_API = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || DEFAULT_API;
 
 interface FetchOptions extends RequestInit {
   token?: string;
