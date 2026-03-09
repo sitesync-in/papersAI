@@ -32,7 +32,7 @@ class RegisterView(APIView):
             user = serializer.save()
             # Auto-create credit wallet
             from apps.subscriptions.models import CreditWallet
-            CreditWallet.objects.create(user=user, credits=50)  # 50 free credits
+            CreditWallet.objects.create(user=user, credits=10)  # 10 free credits
             tokens = get_tokens_for_user(user)
             return Response(tokens, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -84,7 +84,7 @@ class SSOLoginView(APIView):
                 user.set_unusable_password()
                 user.save()
                 from apps.subscriptions.models import CreditWallet
-                CreditWallet.objects.create(user=user, credits=50)
+                CreditWallet.objects.create(user=user, credits=10)
             return Response(get_tokens_for_user(user))
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
