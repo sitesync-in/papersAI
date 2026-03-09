@@ -1,4 +1,5 @@
 import io
+import os
 from django.http import FileResponse
 from django.conf import settings
 from rest_framework import status, generics
@@ -6,9 +7,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
 from .models import Paper
 from .serializers import PaperListSerializer, PaperDetailSerializer, PaperGenerateSerializer
 from .gemini_service import generate_paper
@@ -20,82 +18,67 @@ class PaperGenerateView(APIView):
 
     @extend_schema(
         request=PaperGenerateSerializer,
-        summary='Generate a new exam paper using Gemini AI',
+        summary='Generate a new question paper using AI',
         tags=['Papers'],
     )
     def post(self, request):
         serializer = PaperGenerateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        data = serializer.validated_data
+        serializer.is_valid(raise_exception=True)
 
         # Check credits
-        try:
-            wallet = CreditWallet.objects.get(user=request.user)
-            if wallet.credits < 1:
-                return Response({'error': 'Insufficient credits. Please upgrade your plan.'}, status=status.HTTP_402_PAYMENT_REQUIRED)
-        except CreditWallet.DoesNotExist:
-            return Response({'error': 'Credit wallet not found.'}, status=status.HTTP_404_NOT_FOUND)
+        wallet, _ = CreditWallet.objects.get_or_create(user=request.user)
+        if wallet.balance < 1:
+            return Response({'error': 'Insufficient credits'}, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-        # Create paper record
+        data = serializer.validated_data
         paper = Paper.objects.create(
             teacher=request.user,
             board=data['board'],
             class_name=data['class_name'],
             subject=data['subject'],
-            difficulty=data['difficulty'],
+            difficulty=data.get('difficulty', 'balanced'),
             topics=data.get('topics', ''),
-            adhere_marking_scheme=data['adhere_marking_scheme'],
+            adhere_marking_scheme=data.get('adhere_marking_scheme', True),
             status=Paper.STATUS_GENERATING,
         )
 
         try:
+            language = data.get('language', 'english')
             result = generate_paper(
-                board=data['board'],
-                class_name=data['class_name'],
-                subject=data['subject'],
-                difficulty=data['difficulty'],
-                topics=data.get('topics', ''),
-                adhere_marking_scheme=data['adhere_marking_scheme'],
-                preferred_language=data.get('preferred_language') or request.user.preferred_language or 'en'
+                board=paper.board,
+                class_name=paper.class_name,
+                subject=paper.subject,
+                difficulty=paper.difficulty,
+                topics=paper.topics,
+                adhere_scheme=paper.adhere_marking_scheme,
+                language=language,
             )
-
-            paper.title = result.get('title', f"{data['board']} {data['class_name']} {data['subject']} Paper")
-            paper.paper_content = result
-            paper.answer_key = {s['name']: s['questions'] for s in result.get('sections', [])}
-            paper.paper_text = result.get('paper_text', '')
-            paper.answer_key_text = result.get('answer_key_text', '')
+            paper.paper_text = result.get('paper', '')
+            paper.answer_key_text = result.get('answer_key', '')
             paper.status = Paper.STATUS_READY
-            paper.credits_used = 1
             paper.save()
-
-            # Deduct credit
-            wallet.credits -= 1
+            wallet.balance -= 1
             wallet.save()
 
             return Response(PaperDetailSerializer(paper).data, status=status.HTTP_201_CREATED)
-
         except Exception as e:
             paper.status = Paper.STATUS_FAILED
             paper.save()
-            return Response({'error': f'Paper generation failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class PaperListView(generics.ListAPIView):
-    serializer_class = PaperListSerializer
-    permission_classes = [IsAuthenticated]
-
-    @extend_schema(summary='List all my generated papers', tags=['Papers'])
-    def get_queryset(self):
-        return Paper.objects.filter(teacher=self.request.user)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PaperDetailView(generics.RetrieveAPIView):
     serializer_class = PaperDetailSerializer
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(summary='Get paper detail with content and answer key', tags=['Papers'])
+    def get_queryset(self):
+        return Paper.objects.filter(teacher=self.request.user)
+
+
+class PaperListView(generics.ListAPIView):
+    serializer_class = PaperListSerializer
+    permission_classes = [IsAuthenticated]
+
     def get_queryset(self):
         return Paper.objects.filter(teacher=self.request.user)
 
@@ -113,231 +96,94 @@ class PaperDownloadView(APIView):
         if paper.status != Paper.STATUS_READY:
             return Response({'error': 'Paper is not ready yet'}, status=status.HTTP_400_BAD_REQUEST)
 
-        import os
-        from reportlab.pdfbase import pdfmetrics
-        from reportlab.pdfbase.ttfonts import TTFont
-        
-        font_path_reg = os.path.join(settings.BASE_DIR, 'apps', 'papers', 'fonts', 'NotoSansDevanagari-Regular.ttf')
-        font_path_bold = os.path.join(settings.BASE_DIR, 'apps', 'papers', 'fonts', 'NotoSansDevanagari-Bold.ttf')
-        try:
-            pdfmetrics.registerFont(TTFont('NotoDevanagari', font_path_reg))
-            pdfmetrics.registerFont(TTFont('NotoDevanagari-Bold', font_path_bold))
-            font_reg = 'NotoDevanagari'
-            font_bold = 'NotoDevanagari-Bold'
-        except Exception:
-            font_reg = 'Helvetica'
-            font_bold = 'Helvetica-Bold'
+        import re
+        from fpdf import FPDF
 
-        buffer = io.BytesIO()
-        p = canvas.Canvas(buffer, pagesize=A4)
-        width, height = A4
-        margin_left = 2 * cm
-        margin_right = width - 2 * cm
-        usable_width = margin_right - margin_left
-        page_bottom = 2.5 * cm
+        font_dir = os.path.join(settings.BASE_DIR, 'apps', 'papers', 'fonts')
+        doc_type = request.GET.get('type', 'paper')
 
-        def new_page(y):
-            p.showPage()
-            p.setFont(font_reg, 10)
-            return height - 2 * cm
+        pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=25)
+
+        # Register fonts
+        pdf.add_font('Hind', '', os.path.join(font_dir, 'Hind-Regular.ttf'))
+        pdf.add_font('Hind', 'B', os.path.join(font_dir, 'Hind-Bold.ttf'))
+        pdf.add_font('NotoSans', '', os.path.join(font_dir, 'NotoSans-Regular.ttf'))
+        pdf.add_font('NotoSans', 'B', os.path.join(font_dir, 'NotoSans-Regular.ttf'))
+        pdf.add_font('NotoSansMath', '', os.path.join(font_dir, 'NotoSansMath-Regular.ttf'))
+        pdf.add_font('NotoSansMath', 'B', os.path.join(font_dir, 'NotoSansMath-Regular.ttf'))
+
+        # Enable HarfBuzz text shaping for Devanagari + fallback for chemistry/math symbols
+        pdf.set_text_shaping(True)
+        pdf.set_fallback_fonts(['NotoSans', 'NotoSansMath'])
+
+        pdf.add_page()
 
         # ===== HEADER SECTION =====
-        y = height - 1.5 * cm
-
-        # School/Board header line
-        p.setFont(font_bold, 12)
-        p.drawCentredString(width / 2, y, paper.board or 'Board of Secondary Education')
-        y -= 18
+        pdf.set_font('Hind', 'B', 12)
+        pdf.cell(w=0, text=paper.board or 'Board of Secondary Education', align='C', new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(2)
 
         # Title
-        p.setFont(font_bold, 16)
-        doc_type = request.GET.get('type', 'paper')
         title_suffix = 'Answer Key' if doc_type == 'answer_key' else 'Examination Paper'
-        title = paper.title + ' - ' + title_suffix if paper.title else f'{paper.subject} {title_suffix}'
-        p.drawCentredString(width / 2, y, title)
-        y -= 20
+        title = f'{paper.title} - {title_suffix}' if paper.title else f'{paper.subject} {title_suffix}'
+        pdf.set_font('Hind', 'B', 16)
+        pdf.cell(w=0, text=title, align='C', new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(3)
 
         # Subject / Class / Meta info
-        p.setFont(font_reg, 10)
-        p.drawCentredString(width / 2, y,
-            f'Class: {paper.class_name}  |  Subject: {paper.subject}  |  Difficulty: {paper.difficulty}')
-        y -= 16
-
-        p.drawCentredString(width / 2, y, f'Maximum Marks: 80  |  Time Allowed: 3 Hours')
-        y -= 12
+        pdf.set_font('Hind', '', 10)
+        pdf.cell(w=0, text=f'Class: {paper.class_name}  |  Subject: {paper.subject}  |  Difficulty: {paper.difficulty}', align='C', new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(1)
+        pdf.cell(w=0, text='Maximum Marks: 80  |  Time Allowed: 3 Hours', align='C', new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(2)
 
         # Separator line
-        p.setStrokeColorRGB(0.12, 0.23, 0.37)  # Navy
-        p.setLineWidth(1.5)
-        p.line(margin_left, y, margin_right, y)
-        y -= 8
+        pdf.set_draw_color(31, 59, 94)
+        pdf.set_line_width(0.5)
+        pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+        pdf.ln(3)
 
         # General instructions
-        p.setFont(font_bold, 9)
-        p.drawString(margin_left, y, 'General Instructions:')
-        y -= 14
-        p.setFont(font_reg, 8)
-        instructions = [
+        pdf.set_font('Hind', 'B', 9)
+        pdf.cell(text='General Instructions:', new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(1)
+        pdf.set_font('Hind', '', 8)
+        for inst in [
             '1. All questions are compulsory unless otherwise stated.',
             '2. Marks are indicated against each question.',
             '3. Write neat and legible answers.',
-        ]
-        for inst in instructions:
-            p.drawString(margin_left + 0.5 * cm, y, inst)
-            y -= 12
-        y -= 6
+        ]:
+            pdf.cell(text=f'   {inst}', new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(1)
+        pdf.ln(2)
 
         # Thin separator
-        p.setLineWidth(0.5)
-        p.setStrokeColorRGB(0.7, 0.7, 0.7)
-        p.line(margin_left, y, margin_right, y)
-        y -= 18
+        pdf.set_draw_color(180, 180, 180)
+        pdf.set_line_width(0.2)
+        pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+        pdf.ln(5)
 
         # ===== PAPER CONTENT =====
-        from reportlab.platypus import Table, TableStyle
-        from reportlab.lib import colors
-
-        def draw_text_block(text, x, y, size=10, max_width=None, line_height=14):
-            """Draw text with proper word wrapping, page breaks, and markdown tables."""
-            if max_width is None:
-                max_width = usable_width
-            p.setFont(font_reg, size)
-            
-            paragraphs = text.split('\n')
-            i = 0
-            while i < len(paragraphs):
-                paragraph = paragraphs[i].strip()
-                
-                # Check for Markdown Table
-                if paragraph.startswith('|') and paragraph.endswith('|'):
-                    table_rows = []
-                    while i < len(paragraphs) and paragraphs[i].strip().startswith('|'):
-                        table_rows.append(paragraphs[i].strip())
-                        i += 1
-                        
-                    data = []
-                    for row in table_rows:
-                        cells = [cell.strip() for cell in row.split('|')[1:-1]]
-                        # Skip markdown separator row like |--|--|
-                        if all(all(c in '-: ' for c in cell) for cell in cells if cell):
-                            continue
-                        # Standardize column count to match header length
-                        if not data:
-                            data.append(cells)
-                        else:
-                            expected_len = len(data[0])
-                            if len(cells) < expected_len:
-                                cells.extend([""] * (expected_len - len(cells)))
-                            elif len(cells) > expected_len:
-                                cells = cells[:expected_len]
-                            data.append(cells)
-                    
-                    if data:
-                        col_w = max_width / max(1, len(data[0]))
-                        t = Table(data, colWidths=[col_w]*len(data[0]))
-                        t.setStyle(TableStyle([
-                            ('FONTNAME', (0,0), (-1,-1), font_reg),
-                            ('FONTSIZE', (0,0), (-1,-1), max(8, size-1)),
-                            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.grey),
-                            ('BOX', (0,0), (-1,-1), 0.5, colors.grey),
-                            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#e5e7eb')),
-                            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-                            ('TOPPADDING', (0,0), (-1,-1), 4),
-                        ]))
-                        t_w, t_h = t.wrap(max_width, height)
-                        if y - t_h < page_bottom:
-                            y = new_page(y)
-                        t.drawOn(p, x, y - t_h)
-                        y -= (t_h + 10)
-                    continue
-                
-                # We consumed this line if it wasn't a table, so increment i
-                i += 1
-
-                if not paragraph:
-                    y -= line_height * 0.6
-                    if y < page_bottom:
-                        y = new_page(y)
-                    continue
-
-                # Check if this is a section header (all caps or starts with Section/SECTION)
-                is_header = (paragraph.isupper() and len(paragraph) < 80) or \
-                            paragraph.startswith('Section') or paragraph.startswith('SECTION') or \
-                            paragraph.startswith('PART') or paragraph.startswith('खण्ड')
-                if is_header:
-                    y -= 6
-                    if y < page_bottom:
-                        y = new_page(y)
-                    p.setFont(font_bold, 11)
-                    p.drawString(x, y, paragraph)
-                    y -= 4
-                    # Draw subtle underline
-                    p.setStrokeColorRGB(0.8, 0.72, 0.3)  # Gold
-                    p.setLineWidth(0.8)
-                    text_w = p.stringWidth(paragraph, font_bold, 11)
-                    p.line(x, y, x + text_w, y)
-                    y -= line_height
-                    p.setFont(font_reg, size)
-                    continue
-
-                # Check if it's a question line (starts with number or Q or प्र)
-                is_question = len(paragraph) > 0 and (
-                    (paragraph[0].isdigit() and '.' in paragraph[:5]) or
-                    paragraph.startswith('Q') and len(paragraph) > 1 and (paragraph[1].isdigit() or paragraph[1] == '.') or
-                    paragraph.startswith('प्र')
-                )
-                if is_question:
-                    y -= 4
-                    p.setFont(font_bold, 10)
-                else:
-                    p.setFont(font_reg, size)
-
-                # Word wrap
-                words = paragraph.split()
-                line = ''
-                for word in words:
-                    test = f'{line} {word}'.strip()
-                    if p.stringWidth(test, p._fontname, p._fontsize) < max_width:
-                        line = test
-                    else:
-                        if y < page_bottom:
-                            y = new_page(y)
-                        p.drawString(x, y, line)
-                        y -= line_height
-                        line = word
-                if line:
-                    if y < page_bottom:
-                        y = new_page(y)
-                    p.drawString(x, y, line)
-                    y -= line_height
-
-                # Reset font after question
-                if is_question:
-                    p.setFont(font_reg, size)
-
-            return y
-
         content_text = paper.answer_key_text if doc_type == 'answer_key' else paper.paper_text
         if content_text:
-            y = draw_text_block(content_text, margin_left, y)
+            self._render_content(pdf, content_text)
 
         # ===== FOOTER =====
-        y -= 10
-        if y < page_bottom + 2 * cm:
-            y = new_page(y)
-        p.setStrokeColorRGB(0.7, 0.7, 0.7)
-        p.setLineWidth(0.5)
-        p.line(margin_left, y, margin_right, y)
-        y -= 14
-        p.setFont(font_reg, 8)
-        p.drawCentredString(width / 2, y, '--- End of Paper ---')
-        y -= 12
-        p.setFont(font_reg, 7)
-        p.drawCentredString(width / 2, y, f'Generated by papersAI | {paper.board} | {paper.class_name} | {paper.subject}')
+        pdf.ln(5)
+        pdf.set_draw_color(180, 180, 180)
+        pdf.set_line_width(0.2)
+        pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+        pdf.ln(3)
+        pdf.set_font('Hind', '', 8)
+        pdf.cell(w=0, text='--- End of Paper ---', align='C', new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(2)
+        pdf.set_font('Hind', '', 7)
+        pdf.cell(w=0, text=f'Generated by papersAI | {paper.board} | {paper.class_name} | {paper.subject}', align='C', new_x="LMARGIN", new_y="NEXT")
 
-        p.save()
+        # Output to buffer
+        buffer = io.BytesIO()
+        pdf.output(buffer)
         buffer.seek(0)
 
         prefix = 'answer_key_' if doc_type == 'answer_key' else 'paper_'
@@ -345,6 +191,184 @@ class PaperDownloadView(APIView):
         response = FileResponse(buffer, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
+
+    @staticmethod
+    def _latex_to_unicode(text):
+        """Convert common LaTeX math notation to Unicode characters."""
+        import re
+
+        # Subscript and superscript digit maps
+        sub_map = str.maketrans('0123456789+-=()aehijklmnoprstuvx', '₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎ₐₑₕᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥₓ')
+        sup_map = str.maketrans('0123456789+-=()aeinorstuvwxyz', '⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ᵃᵉⁱⁿᵒʳˢᵗᵘᵛʷˣʸᶻ')
+
+        # Greek letter map
+        greek = {
+            r'\alpha': 'α', r'\beta': 'β', r'\gamma': 'γ', r'\delta': 'δ',
+            r'\epsilon': 'ε', r'\zeta': 'ζ', r'\eta': 'η', r'\theta': 'θ',
+            r'\lambda': 'λ', r'\mu': 'μ', r'\nu': 'ν', r'\pi': 'π',
+            r'\sigma': 'σ', r'\tau': 'τ', r'\phi': 'φ', r'\omega': 'ω',
+            r'\Delta': 'Δ', r'\Sigma': 'Σ', r'\Omega': 'Ω', r'\Pi': 'Π',
+            r'\Gamma': 'Γ', r'\Theta': 'Θ', r'\Lambda': 'Λ', r'\Phi': 'Φ',
+        }
+
+        # Arrow map
+        arrows = {
+            r'\rightarrow': '→', r'\leftarrow': '←', r'\to': '→',
+            r'\leftrightarrow': '↔', r'\Rightarrow': '⇒',
+            r'\Leftrightarrow': '⇔', r'\uparrow': '↑', r'\downarrow': '↓',
+            r'\rightleftharpoons': '⇌', r'\leftrightharpoons': '⇌',
+        }
+
+        # Other symbols
+        symbols = {
+            r'\times': '×', r'\div': '÷', r'\pm': '±', r'\mp': '∓',
+            r'\leq': '≤', r'\geq': '≥', r'\neq': '≠', r'\approx': '≈',
+            r'\infty': '∞', r'\degree': '°', r'\circ': '°',
+        }
+
+        # Process inline math: $...$
+        def convert_math(match):
+            expr = match.group(1)
+
+            # \sqrt{...} -> √(...)
+            expr = re.sub(r'\\sqrt\{([^}]*)\}', r'√(\1)', expr)
+
+            # \frac{a}{b} -> a/b
+            expr = re.sub(r'\\frac\{([^}]*)\}\{([^}]*)\}', r'\1/\2', expr)
+
+            # Replace Greek, arrows, symbols
+            for latex, uni in {**greek, **arrows, **symbols}.items():
+                expr = expr.replace(latex, uni)
+
+            # Subscripts: _{...} or _X
+            def sub_repl(m):
+                content = m.group(1) or m.group(2)
+                return content.translate(sub_map)
+            expr = re.sub(r'_\{([^}]*)\}|_([A-Za-z0-9])', sub_repl, expr)
+
+            # Superscripts: ^{...} or ^X
+            def sup_repl(m):
+                content = m.group(1) or m.group(2)
+                return content.translate(sup_map)
+            expr = re.sub(r'\^\{([^}]*)\}|\^([A-Za-z0-9])', sup_repl, expr)
+
+            # Remove remaining braces
+            expr = expr.replace('{', '').replace('}', '')
+
+            return expr
+
+        # Replace all $...$ (non-greedy)
+        text = re.sub(r'\$([^$]+)\$', convert_math, text)
+
+        # Also replace standalone LaTeX commands outside of $...$
+        for latex, uni in {**greek, **arrows, **symbols}.items():
+            text = text.replace(latex, uni)
+
+        return text
+
+    def _render_content(self, pdf, text):
+        """Render paper content with markdown table support, section headers, and question formatting."""
+        # Preprocess: convert LaTeX math to Unicode
+        text = self._latex_to_unicode(text)
+
+        lines = text.split('\n')
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+
+            # ---- Markdown Table Block ----
+            if line.startswith('|') and line.endswith('|'):
+                table_lines = []
+                while i < len(lines) and lines[i].strip().startswith('|'):
+                    table_lines.append(lines[i].strip())
+                    i += 1
+
+                data = []
+                for row in table_lines:
+                    cells = [c.strip() for c in row.split('|')[1:-1]]
+                    # Skip separator rows like |---|---|
+                    if all(all(ch in '-: ' for ch in c) for c in cells if c):
+                        continue
+                    if not data:
+                        data.append(cells)
+                    else:
+                        expected = len(data[0])
+                        if len(cells) < expected:
+                            cells.extend([''] * (expected - len(cells)))
+                        elif len(cells) > expected:
+                            cells = cells[:expected]
+                        data.append(cells)
+
+                if data:
+                    pdf.set_font('Hind', '', 10)
+                    col_w = (pdf.w - pdf.l_margin - pdf.r_margin) / max(1, len(data[0]))
+                    with pdf.table(col_widths=col_w) as table:
+                        for row_idx, row_data in enumerate(data):
+                            row = table.row()
+                            if row_idx == 0:
+                                pdf.set_font('Hind', 'B', 10)
+                            else:
+                                pdf.set_font('Hind', '', 10)
+                            for cell_text in row_data:
+                                row.cell(cell_text)
+                    pdf.ln(4)
+                continue
+
+            i += 1
+
+            # ---- Empty line -> small gap ----
+            if not line:
+                pdf.ln(3)
+                continue
+
+            # ---- Section headers (SECTION A, खण्ड अ, PART, etc.) ----
+            is_header = (line.isupper() and len(line) < 80) or \
+                        line.startswith('Section') or line.startswith('SECTION') or \
+                        line.startswith('PART') or line.startswith('खण्ड')
+            if is_header:
+                pdf.ln(3)
+                pdf.set_font('Hind', 'B', 12)
+                pdf.cell(text=line, new_x="LMARGIN", new_y="NEXT")
+                # Underline
+                pdf.set_draw_color(204, 184, 77)
+                pdf.set_line_width(0.3)
+                pdf.line(pdf.l_margin, pdf.get_y(), pdf.l_margin + pdf.get_string_width(line), pdf.get_y())
+                pdf.ln(4)
+                continue
+
+            # ---- Question lines (start with number, Q, or प्र) ----
+            is_question = (
+                (len(line) > 0 and line[0].isdigit() and '.' in line[:5]) or
+                (line.startswith('Q') and len(line) > 1 and (line[1].isdigit() or line[1] == '.')) or
+                line.startswith('प्र')
+            )
+            if is_question:
+                pdf.ln(2)
+                pdf.set_font('Hind', 'B', 10)
+                self._draw_wrapped_text(pdf, line)
+                pdf.set_font('Hind', '', 10)
+            else:
+                pdf.set_font('Hind', '', 10)
+                self._draw_wrapped_text(pdf, line)
+
+            pdf.ln(1)
+
+    @staticmethod
+    def _draw_wrapped_text(pdf, text):
+        """Word-wrap text using cell() instead of multi_cell() to preserve fallback font rendering."""
+        max_w = pdf.w - pdf.l_margin - pdf.r_margin
+        words = text.split(' ')
+        line = ''
+        for word in words:
+            test = f'{line} {word}'.strip() if line else word
+            if pdf.get_string_width(test) < max_w:
+                line = test
+            else:
+                if line:
+                    pdf.cell(text=line, new_x="LMARGIN", new_y="NEXT")
+                line = word
+        if line:
+            pdf.cell(text=line, new_x="LMARGIN", new_y="NEXT")
 
 
 class DashboardStatsView(APIView):
