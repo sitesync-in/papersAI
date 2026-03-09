@@ -13,4 +13,16 @@
 }
 .table td { padding: 14px 12px; font-size: 14px; color: var(--gray-700); border-bottom: 1px solid var(--gray-100); }
 .table tr:hover td { background: var(--gray-50); }
-.actions { display: flex; gap: 6px; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .page { padding: 16px; }
+  .header { flex-direction: column; gap: 16px; align-items: flex-start; }
+  .table { min-width: 800px; }
+}

@@ -274,4 +274,6 @@
   .stepLabel { display: none; }
   .stepItem { flex: none; }
   .genCenter { padding: 24px; }
+  .actionBar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .actionBar button { width: 100%; }
 }

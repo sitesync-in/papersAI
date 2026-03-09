@@ -33,8 +33,17 @@
 }
 
 @media (max-width: 768px) {
+  .navbar {
+    padding: 0 16px;
+  }
   .menuBtn {
     display: block;
+  }
+  .pageTitle {
+    font-size: 16px;
+  }
+  .profileName, .profileRole {
+    display: none;
   }
 }
 

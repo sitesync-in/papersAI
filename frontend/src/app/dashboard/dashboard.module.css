@@ -144,6 +144,9 @@
 }
 
 @media (max-width: 900px) {
+  .page {
+    padding: 16px;
+  }
   .statsRow {
     grid-template-columns: 1fr;
   }

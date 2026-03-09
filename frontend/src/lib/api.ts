@@ -88,6 +88,7 @@ export const papersAPI = {
   list: () => apiFetch<{ results: PaperListItem[] }>('/api/papers/'),
   detail: (id: number) => apiFetch<PaperDetail>(`/api/papers/${id}/`),
   downloadUrl: (id: number) => `${API_URL}/api/papers/${id}/download/`,
+  downloadAnswerKeyUrl: (id: number) => `${API_URL}/api/papers/${id}/download/?type=answer_key`,
   dashboardStats: () => apiFetch<DashboardStats>('/api/papers/dashboard/stats/'),
 };
 

@@ -136,7 +136,9 @@ class PaperDownloadView(APIView):
 
         # Title
         p.setFont('Helvetica-Bold', 16)
-        title = paper.title or f'{paper.subject} Examination Paper'
+        doc_type = request.GET.get('type', 'paper')
+        title_suffix = 'Answer Key' if doc_type == 'answer_key' else 'Examination Paper'
+        title = paper.title + ' - ' + title_suffix if paper.title else f'{paper.subject} {title_suffix}'
         p.drawCentredString(width / 2, y, title)
         y -= 20
 
@@ -246,8 +248,9 @@ class PaperDownloadView(APIView):
 
             return y
 
-        if paper.paper_text:
-            y = draw_text_block(paper.paper_text, margin_left, y)
+        content_text = paper.answer_key_text if doc_type == 'answer_key' else paper.paper_text
+        if content_text:
+            y = draw_text_block(content_text, margin_left, y)
 
         # ===== FOOTER =====
         y -= 10
@@ -266,7 +269,8 @@ class PaperDownloadView(APIView):
         p.save()
         buffer.seek(0)
 
-        filename = f"paper_{paper.id}_{paper.subject.replace(' ', '_')}.pdf"
+        prefix = 'answer_key_' if doc_type == 'answer_key' else 'paper_'
+        filename = f"{prefix}{paper.id}_{paper.subject.replace(' ', '_')}.pdf"
         response = FileResponse(buffer, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response

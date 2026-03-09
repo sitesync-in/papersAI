@@ -97,6 +97,28 @@ function GenerateContent() {
     }
   };
 
+  const handleDownloadAnswerKey = async () => {
+    if (!paper) return;
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(papersAPI.downloadAnswerKeyUrl(paper.id), {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `answer_key_${paper.id}_${paper.subject?.replace(/\s/g, '_') || 'exam'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      alert('Failed to download Answer Key PDF. Please try again.');
+    }
+  };
+
   return (
     <div className={styles.page}>
       {/* Step Indicator */}
@@ -267,10 +289,12 @@ function GenerateContent() {
             <button className="btn btn-outline" onClick={() => { setStep(1); setPaper(null); }}>
               Generate Another
             </button>
-            <button className="btn btn-outline">📧 Email</button>
-            <button className="btn btn-outline">📋 Assign</button>
-            <button className="btn btn-primary" onClick={handleDownload}>
+            <button className="btn btn-outline">📧 E-Mail</button>
+            <button className="btn btn-primary" onClick={handleDownload} style={{ background: 'var(--navy)' }}>
               ⬇️ Download PDF
+            </button>
+            <button className="btn btn-gold" onClick={handleDownloadAnswerKey}>
+              🔑 Download Answer Key
             </button>
           </div>
         </div>
