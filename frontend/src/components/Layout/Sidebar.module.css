@@ -10,6 +10,14 @@
   z-index: 100;
   padding: 20px 12px;
   overflow-y: auto;
+  transition: transform 0.3s ease;
+}
+
+.logoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
 }
 
 .logo {
@@ -17,7 +25,16 @@
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  margin-bottom: 32px;
+}
+
+.closeBtn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--white);
+  font-size: 28px;
+  cursor: pointer;
+  padding: 8px;
 }
 
 .logoIcon {
@@ -129,4 +146,17 @@
   height: 100%;
   background: var(--gold);
   border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.3);
+  }
+  .closeBtn {
+    display: block;
+  }
 }

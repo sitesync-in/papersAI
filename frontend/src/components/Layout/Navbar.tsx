@@ -5,7 +5,7 @@ import { subscriptionsAPI } from '@/lib/api';
 import styles from './Navbar.module.css';
 import { useTranslation } from 'react-i18next';
 
-export default function Navbar({ title }: { title?: string }) {
+export default function Navbar({ title, onMenuClick }: { title?: string, onMenuClick?: () => void }) {
   const { user, logout } = useAuth();
   const { t } = useTranslation();
   const [credits, setCredits] = useState(0);
@@ -19,7 +19,12 @@ export default function Navbar({ title }: { title?: string }) {
 
   return (
     <header className={styles.navbar}>
-      <h2 className={styles.pageTitle}>{title || t('sidebar.dashboard')}</h2>
+      <div className={styles.left}>
+        <button className={styles.menuBtn} onClick={onMenuClick}>
+          ☰
+        </button>
+        <h2 className={styles.pageTitle}>{title || t('sidebar.dashboard')}</h2>
+      </div>
 
       <div className={styles.right}>
         <div className={styles.creditBadge}>

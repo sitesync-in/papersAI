@@ -210,6 +210,42 @@ input, select, textarea {
   margin-bottom: 32px;
 }
 
+/* ========================= LAYOUT ========================= */
+.layout-wrapper {
+  display: flex;
+  min-height: 100vh;
+}
+
+.layout-main {
+  margin-left: var(--sidebar-width);
+  flex: 1;
+  min-height: 100vh;
+  background: var(--bg);
+  transition: var(--transition-slow);
+}
+
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 90;
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .layout-main {
+    margin-left: 0;
+  }
+  .mobile-overlay {
+    display: block;
+  }
+  .page-wrapper {
+    padding: 16px;
+  }
+}
+
 /* ========================= SCROLLBAR ========================= */
 ::-webkit-scrollbar {
   width: 6px;

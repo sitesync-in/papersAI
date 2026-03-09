@@ -11,3 +11,10 @@
   transition: var(--transition);
 }
 .langActive { border-color: var(--navy); background: var(--navy); color: var(--white); }
+
+@media (max-width: 768px) {
+  .grid { grid-template-columns: 1fr; }
+  .langRow { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .langBtns { width: 100%; }
+  .langBtn { flex: 1; text-align: center; }
+}

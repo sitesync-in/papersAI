@@ -67,7 +67,7 @@
 }
 
 .boardRow {
-  display: flex; gap: 10px; margin-bottom: 20px;
+  display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
 }
 
 .boardBtn {
@@ -267,6 +267,11 @@
 }
 
 @media (max-width: 768px) {
+  .page { padding: 16px; }
   .outputRow { grid-template-columns: 1fr; }
   .formRow { flex-direction: column; }
+  .stepBar { overflow-x: auto; padding-bottom: 8px; }
+  .stepLabel { display: none; }
+  .stepItem { flex: none; }
+  .genCenter { padding: 24px; }
 }

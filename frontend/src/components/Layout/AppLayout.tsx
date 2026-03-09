@@ -9,6 +9,7 @@ export default function AppLayout({ children, title }: { children: React.ReactNo
   const { user, loading } = useAuth();
   const router = useRouter();
   const [redirecting, setRedirecting] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     // Immediate check: no token in localStorage = not authenticated at all
@@ -37,10 +38,19 @@ export default function AppLayout({ children, title }: { children: React.ReactNo
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar />
-      <div style={{ marginLeft: 'var(--sidebar-width)', flex: 1, minHeight: '100vh', background: 'var(--bg)' }}>
-        <Navbar title={title} />
+    <div className="layout-wrapper">
+      <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
+      
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="mobile-overlay" 
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      <div className="layout-main">
+        <Navbar title={title} onMenuClick={() => setIsMobileMenuOpen(true)} />
         <main>{children}</main>
       </div>
     </div>
