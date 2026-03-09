@@ -58,7 +58,7 @@ class PaperGenerateView(APIView):
                 difficulty=data['difficulty'],
                 topics=data.get('topics', ''),
                 adhere_marking_scheme=data['adhere_marking_scheme'],
-                preferred_language=request.user.preferred_language or 'English'
+                preferred_language=request.user.preferred_language or 'en'
             )
 
             paper.title = result.get('title', f"{data['board']} {data['class_name']} {data['subject']} Paper")

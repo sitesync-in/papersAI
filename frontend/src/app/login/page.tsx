@@ -26,7 +26,7 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState('');
   const [schoolName, setSchoolName] = useState('');
   const [district, setDistrict] = useState('');
-  const [preferredLanguage, setPreferredLanguage] = useState('English');
+  const [preferredLanguage, setPreferredLanguage] = useState('en');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,8 +170,8 @@ export default function LoginPage() {
                 <div className={styles.field}>
                   <label className="label">Preferred Generation Language</label>
                   <select className="input-field" value={preferredLanguage} onChange={e => setPreferredLanguage(e.target.value)}>
-                    <option value="English">English</option>
-                    <option value="Hindi">Hindi (हिंदी)</option>
+                    <option value="en">English</option>
+                    <option value="hi">Hindi (हिंदी)</option>
                   </select>
                 </div>
                 <button type="submit" className={`btn btn-primary btn-lg ${styles.submitBtn}`} disabled={loading}>

@@ -13,7 +13,7 @@ export default function SettingsPage() {
     first_name: '', last_name: '', email: '',
     employee_id: '', shala_darpan_id: '',
     school_name: '', udise_code: '', district: '',
-    phone: '', preferred_language: 'English',
+    phone: '', preferred_language: 'en',
   });
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function SettingsPage() {
         udise_code: user.udise_code || '',
         district: user.district || '',
         phone: user.phone || '',
-        preferred_language: user.preferred_language || 'English',
+        preferred_language: user.preferred_language || 'en',
       });
     }
   }, [user]);
@@ -86,10 +86,10 @@ export default function SettingsPage() {
             <div className={styles.langRow}>
               <label className="label">Default Language</label>
               <div className={styles.langBtns}>
-                <button type="button" className={`${styles.langBtn} ${form.preferred_language === 'English' ? styles.langActive : ''}`}
-                  onClick={() => setForm({ ...form, preferred_language: 'English' })}>English</button>
-                <button type="button" className={`${styles.langBtn} ${form.preferred_language === 'Hindi' ? styles.langActive : ''}`}
-                  onClick={() => setForm({ ...form, preferred_language: 'Hindi' })}>हिंदी (Hindi)</button>
+                <button type="button" className={`${styles.langBtn} ${form.preferred_language === 'en' ? styles.langActive : ''}`}
+                  onClick={() => setForm({ ...form, preferred_language: 'en' })}>English</button>
+                <button type="button" className={`${styles.langBtn} ${form.preferred_language === 'hi' ? styles.langActive : ''}`}
+                  onClick={() => setForm({ ...form, preferred_language: 'hi' })}>हिंदी (Hindi)</button>
               </div>
             </div>
           </div>
