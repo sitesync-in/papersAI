@@ -56,7 +56,7 @@ export const authAPI = {
   register: (data: RegisterPayload) => apiFetch<AuthResponse>('/api/auth/register/', { method: 'POST', body: JSON.stringify(data) }),
   sso: (sso_token: string) => apiFetch<AuthResponse>('/api/auth/sso/', { method: 'POST', body: JSON.stringify({ sso_token }) }),
   me: () => apiFetch<UserProfile>('/api/auth/me/'),
-  updateProfile: (data: Partial<UserProfile>) => apiFetch<UserProfile>('/api/auth/profile/', { method: 'PUT', body: JSON.stringify(data) }),
+  updateProfile: (data: Partial<UserProfile>) => apiFetch<UserProfile>('/api/auth/profile/', { method: 'PATCH', body: JSON.stringify(data) }),
   refreshToken: (refresh: string) => apiFetch<{ access: string }>('/api/auth/token/refresh/', { method: 'POST', body: JSON.stringify({ refresh }) }),
 };
 
