@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import { papersAPI, DashboardStats } from '@/lib/api';
 import AppLayout from '@/components/Layout/AppLayout';
 import styles from './dashboard.module.css';
+import { useTranslation } from 'react-i18next';
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [board, setBoard] = useState('RBSE');
@@ -27,7 +29,7 @@ export default function DashboardPage() {
       <div className={styles.page}>
         {/* Greeting */}
         <div className="animate-fadeIn">
-          <h1 className={styles.greeting}>Welcome back, {user?.first_name}!</h1>
+          <h1 className={styles.greeting}>{t('dashboard.welcome')}, {user?.first_name}!</h1>
           <p className={styles.greetingSub}>Here is what&apos;s happening with your papers today.</p>
         </div>
 
@@ -36,21 +38,21 @@ export default function DashboardPage() {
           <div className={`card ${styles.statCard}`}>
             <div className={styles.statIcon} style={{ background: 'rgba(30,58,95,0.1)' }}>📄</div>
             <div>
-              <div className={styles.statLabel}>PAPERS GENERATED</div>
+              <div className={styles.statLabel}>{t('dashboard.stats.papers_generated').toUpperCase()}</div>
               <div className={styles.statValue}>{stats?.papers_generated ?? 0}</div>
             </div>
           </div>
           <div className={`card ${styles.statCard}`}>
             <div className={styles.statIcon} style={{ background: 'rgba(212,175,55,0.1)' }}>🕐</div>
             <div>
-              <div className={styles.statLabel}>HOURS SAVED</div>
+              <div className={styles.statLabel}>{t('dashboard.stats.hours_saved').toUpperCase()}</div>
               <div className={styles.statValue}>{stats?.hours_saved ?? 0} hrs</div>
             </div>
           </div>
           <div className={`card ${styles.statCard}`}>
             <div className={styles.statIcon} style={{ background: 'rgba(46,125,50,0.1)' }}>🎓</div>
             <div>
-              <div className={styles.statLabel}>ACTIVE CLASSES</div>
+              <div className={styles.statLabel}>{t('dashboard.stats.active_classes').toUpperCase()}</div>
               <div className={styles.statValue}>{stats?.active_classes ?? 0}</div>
             </div>
           </div>

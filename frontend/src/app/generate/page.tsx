@@ -1,13 +1,17 @@
 'use client';
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { papersAPI } from '@/lib/api';
 import AppLayout from '@/components/Layout/AppLayout';
 import styles from './generate.module.css';
+import { useAuth } from '@/lib/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 function GenerateContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const { t } = useTranslation();
 
   const [step, setStep] = useState(1);
   const [board, setBoard] = useState(searchParams.get('board') || 'RBSE');
@@ -21,6 +25,14 @@ function GenerateContent() {
   const [paper, setPaper] = useState<any>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [error, setError] = useState('');
+  const [paperLanguage, setPaperLanguage] = useState(user?.preferred_language || 'en');
+
+  // If user loads later, override initial state
+  useEffect(() => {
+    if (user?.preferred_language && paperLanguage === 'en') {
+      setPaperLanguage(user.preferred_language);
+    }
+  }, [user]);
 
   const steps = [
     { num: 1, label: 'Curriculum' },
@@ -51,6 +63,7 @@ function GenerateContent() {
       const result = await papersAPI.generate({
         board, class_name: classVal, subject,
         difficulty, topics, adhere_marking_scheme: adhereScheme,
+        preferred_language: paperLanguage,
       });
       setPaper(result);
       setStep(4);
@@ -118,6 +131,16 @@ function GenerateContent() {
                   {b}
                 </button>
               ))}
+            </div>
+
+            <div className={styles.formRow} style={{ marginTop: '16px' }}>
+              <div className={styles.formField}>
+                <label className="label">{t('generate.paper_language') || "Language"}</label>
+                <select className="input-field" value={paperLanguage} onChange={e => setPaperLanguage(e.target.value)}>
+                  <option value="en">English</option>
+                  <option value="hi">Hindi (हिंदी)</option>
+                </select>
+              </div>
             </div>
 
             <div className={styles.formRow}>

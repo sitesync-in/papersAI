@@ -4,9 +4,11 @@ import { useAuth } from '@/lib/AuthContext';
 import { authAPI } from '@/lib/api';
 import AppLayout from '@/components/Layout/AppLayout';
 import styles from './settings.module.css';
+import { useTranslation } from 'react-i18next';
 
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
+  const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState({
@@ -49,17 +51,17 @@ export default function SettingsPage() {
   };
 
   return (
-    <AppLayout title="Settings">
+    <AppLayout title={t('settings.title')}>
       <div className={styles.page}>
-        <h1 className="page-title">Profile & Settings</h1>
-        <p className="page-subtitle">Manage your account and school details</p>
+        <h1 className="page-title">{t('settings.title')}</h1>
+        <p className="page-subtitle">{t('settings.subtitle')}</p>
 
-        {saved && <div className={styles.success}>✅ Profile saved successfully!</div>}
+        {saved && <div className={styles.success}>✅ {t('settings.success')}</div>}
 
         <form onSubmit={handleSave}>
           {/* Teacher Details */}
           <div className={`card ${styles.section}`}>
-            <h3 className={styles.sectionTitle}>👤 Teacher Details</h3>
+            <h3 className={styles.sectionTitle}>👤 {t('settings.teacher_details')}</h3>
             <div className={styles.grid}>
               <div><label className="label">First Name</label><input className="input-field" value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} /></div>
               <div><label className="label">Last Name</label><input className="input-field" value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} /></div>
@@ -72,7 +74,7 @@ export default function SettingsPage() {
 
           {/* School Details */}
           <div className={`card ${styles.section}`}>
-            <h3 className={styles.sectionTitle}>🏫 School Details</h3>
+            <h3 className={styles.sectionTitle}>🏫 {t('settings.school_details')}</h3>
             <div className={styles.grid}>
               <div><label className="label">School Name</label><input className="input-field" value={form.school_name} onChange={e => setForm({ ...form, school_name: e.target.value })} /></div>
               <div><label className="label">UDISE Code</label><input className="input-field" value={form.udise_code} onChange={e => setForm({ ...form, udise_code: e.target.value })} /></div>
@@ -82,7 +84,7 @@ export default function SettingsPage() {
 
           {/* Preferences */}
           <div className={`card ${styles.section}`}>
-            <h3 className={styles.sectionTitle}>🌐 Preferences</h3>
+            <h3 className={styles.sectionTitle}>🌐 {t('settings.preferences')}</h3>
             <div className={styles.langRow}>
               <label className="label">Default Language</label>
               <div className={styles.langBtns}>
@@ -95,7 +97,7 @@ export default function SettingsPage() {
           </div>
 
           <button type="submit" className="btn btn-primary btn-lg" disabled={saving}>
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving ? t('settings.saving') : t('settings.save')}
           </button>
         </form>
       </div>

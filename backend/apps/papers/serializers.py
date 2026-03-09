@@ -24,3 +24,4 @@ class PaperGenerateSerializer(serializers.Serializer):
     difficulty = serializers.ChoiceField(choices=['easy', 'balanced', 'hard'], default='balanced')
     topics = serializers.CharField(required=False, allow_blank=True, default='')
     adhere_marking_scheme = serializers.BooleanField(default=True)
+    preferred_language = serializers.ChoiceField(choices=['en', 'hi'], required=False)

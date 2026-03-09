@@ -3,17 +3,20 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import styles from './Sidebar.module.css';
 
-const menuItems = [
-  { href: '/dashboard', icon: '📊', label: 'Dashboard' },
-  { href: '/generate', icon: '📝', label: 'Generate Paper' },
-  { href: '/my-papers', icon: '📂', label: 'My Papers' },
-  { href: '/students', icon: '👥', label: 'My Students' },
-  { href: '/subscription', icon: '💳', label: 'Subscription' },
-  { href: '/settings', icon: '⚙️', label: 'Settings' },
-];
+import { useTranslation } from 'react-i18next';
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { t } = useTranslation();
+
+  const menuItems = [
+    { href: '/dashboard', icon: '📊', label: t('sidebar.dashboard') },
+    { href: '/generate', icon: '📝', label: t('sidebar.generate') },
+    { href: '/my-papers', icon: '📂', label: t('sidebar.my_papers') },
+    { href: '/students', icon: '👥', label: t('sidebar.students') },
+    { href: '/subscription', icon: '💳', label: t('sidebar.subscription') },
+    { href: '/settings', icon: '⚙️', label: t('sidebar.settings') },
+  ];
 
   return (
     <aside className={styles.sidebar}>
@@ -21,7 +24,7 @@ export default function Sidebar() {
         <div className={styles.logoIcon}>✦</div>
         <div>
           <div className={styles.logoText}>papersAI</div>
-          <div className={styles.logoSub}>Teacher Panel</div>
+          <div className={styles.logoSub}>{t('sidebar.teacher_panel')}</div>
         </div>
       </div>
 

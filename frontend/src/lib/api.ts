@@ -64,6 +64,7 @@ export const authAPI = {
 export interface PaperGeneratePayload {
   board: string; class_name: string; subject: string;
   difficulty?: string; topics?: string; adhere_marking_scheme?: boolean;
+  preferred_language?: string;
 }
 export interface PaperListItem {
   id: number; title: string; board: string; class_name: string;

@@ -3,9 +3,11 @@ import { useAuth } from '@/lib/AuthContext';
 import { useEffect, useState } from 'react';
 import { subscriptionsAPI } from '@/lib/api';
 import styles from './Navbar.module.css';
+import { useTranslation } from 'react-i18next';
 
 export default function Navbar({ title }: { title?: string }) {
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const [credits, setCredits] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
 
@@ -17,7 +19,7 @@ export default function Navbar({ title }: { title?: string }) {
 
   return (
     <header className={styles.navbar}>
-      <h2 className={styles.pageTitle}>{title || 'Dashboard'}</h2>
+      <h2 className={styles.pageTitle}>{title || t('sidebar.dashboard')}</h2>
 
       <div className={styles.right}>
         <div className={styles.creditBadge}>

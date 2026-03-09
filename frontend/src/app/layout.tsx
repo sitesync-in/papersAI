@@ -7,11 +7,17 @@ export const metadata: Metadata = {
   description: 'AI-powered exam paper generation for Rajasthan educators. Generate curriculum-aligned papers in minutes.',
 };
 
+import I18nProviderWrapper from '@/components/Layout/I18nProviderWrapper';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <I18nProviderWrapper>
+            {children}
+          </I18nProviderWrapper>
+        </AuthProvider>
       </body>
     </html>
   );
