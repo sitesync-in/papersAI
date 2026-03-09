@@ -62,7 +62,18 @@ export default function LoginPage() {
       login(res.access, res.refresh, res.user);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err?.email?.[0] || err?.username?.[0] || 'Registration failed.');
+      let errorMsg = 'Registration failed. Check your details.';
+      if (err && typeof err === 'object') {
+        const messages = [];
+        // Skip HTTP status codes or generic keys if needed, but usually DRF returns field arrays
+        for (const [key, val] of Object.entries(err)) {
+          if (key === 'status') continue;
+          if (Array.isArray(val)) messages.push(...val);
+          else if (typeof val === 'string') messages.push(val);
+        }
+        if (messages.length > 0) errorMsg = messages.join(' ');
+      }
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -166,6 +177,15 @@ export default function LoginPage() {
                   <label className="label">School Name</label>
                   <input className="input-field" placeholder="Govt. Sr. Sec. School"
                     value={schoolName} onChange={e => setSchoolName(e.target.value)} />
+                </div>
+                <div className={styles.field}>
+                  <label className="label">District (Rajasthan)</label>
+                  <select className="input-field" value={district} onChange={e => setDistrict(e.target.value)} required>
+                    <option value="">Select District</option>
+                    {DISTRICTS.map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className={styles.field}>
                   <label className="label">Preferred Generation Language</label>
