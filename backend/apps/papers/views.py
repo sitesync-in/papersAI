@@ -117,11 +117,13 @@ class PaperDownloadView(APIView):
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
         
-        font_path = os.path.join(settings.BASE_DIR, 'apps', 'papers', 'fonts', 'NotoSansDevanagari-Regular.ttf')
+        font_path_reg = os.path.join(settings.BASE_DIR, 'apps', 'papers', 'fonts', 'NotoSansDevanagari-Regular.ttf')
+        font_path_bold = os.path.join(settings.BASE_DIR, 'apps', 'papers', 'fonts', 'NotoSansDevanagari-Bold.ttf')
         try:
-            pdfmetrics.registerFont(TTFont('NotoDevanagari', font_path))
+            pdfmetrics.registerFont(TTFont('NotoDevanagari', font_path_reg))
+            pdfmetrics.registerFont(TTFont('NotoDevanagari-Bold', font_path_bold))
             font_reg = 'NotoDevanagari'
-            font_bold = 'NotoDevanagari'
+            font_bold = 'NotoDevanagari-Bold'
         except Exception:
             font_reg = 'Helvetica'
             font_bold = 'Helvetica-Bold'
@@ -192,13 +194,68 @@ class PaperDownloadView(APIView):
         y -= 18
 
         # ===== PAPER CONTENT =====
+        from reportlab.platypus import Table, TableStyle
+        from reportlab.lib import colors
+
         def draw_text_block(text, x, y, size=10, max_width=None, line_height=14):
-            """Draw text with proper word wrapping and page breaks."""
+            """Draw text with proper word wrapping, page breaks, and markdown tables."""
             if max_width is None:
                 max_width = usable_width
             p.setFont(font_reg, size)
-            for paragraph in text.split('\n'):
-                paragraph = paragraph.strip()
+            
+            paragraphs = text.split('\n')
+            i = 0
+            while i < len(paragraphs):
+                paragraph = paragraphs[i].strip()
+                
+                # Check for Markdown Table
+                if paragraph.startswith('|') and paragraph.endswith('|'):
+                    table_rows = []
+                    while i < len(paragraphs) and paragraphs[i].strip().startswith('|'):
+                        table_rows.append(paragraphs[i].strip())
+                        i += 1
+                        
+                    data = []
+                    for row in table_rows:
+                        cells = [cell.strip() for cell in row.split('|')[1:-1]]
+                        # Skip markdown separator row like |--|--|
+                        if all(all(c in '-: ' for c in cell) for cell in cells if cell):
+                            continue
+                        # Standardize column count to match header length
+                        if not data:
+                            data.append(cells)
+                        else:
+                            expected_len = len(data[0])
+                            if len(cells) < expected_len:
+                                cells.extend([""] * (expected_len - len(cells)))
+                            elif len(cells) > expected_len:
+                                cells = cells[:expected_len]
+                            data.append(cells)
+                    
+                    if data:
+                        col_w = max_width / max(1, len(data[0]))
+                        t = Table(data, colWidths=[col_w]*len(data[0]))
+                        t.setStyle(TableStyle([
+                            ('FONTNAME', (0,0), (-1,-1), font_reg),
+                            ('FONTSIZE', (0,0), (-1,-1), max(8, size-1)),
+                            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.grey),
+                            ('BOX', (0,0), (-1,-1), 0.5, colors.grey),
+                            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#e5e7eb')),
+                            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                            ('TOPPADDING', (0,0), (-1,-1), 4),
+                        ]))
+                        t_w, t_h = t.wrap(max_width, height)
+                        if y - t_h < page_bottom:
+                            y = new_page(y)
+                        t.drawOn(p, x, y - t_h)
+                        y -= (t_h + 10)
+                    continue
+                
+                # We consumed this line if it wasn't a table, so increment i
+                i += 1
+
                 if not paragraph:
                     y -= line_height * 0.6
                     if y < page_bottom:
@@ -208,7 +265,7 @@ class PaperDownloadView(APIView):
                 # Check if this is a section header (all caps or starts with Section/SECTION)
                 is_header = (paragraph.isupper() and len(paragraph) < 80) or \
                             paragraph.startswith('Section') or paragraph.startswith('SECTION') or \
-                            paragraph.startswith('PART')
+                            paragraph.startswith('PART') or paragraph.startswith('खण्ड')
                 if is_header:
                     y -= 6
                     if y < page_bottom:
@@ -225,10 +282,11 @@ class PaperDownloadView(APIView):
                     p.setFont(font_reg, size)
                     continue
 
-                # Check if it's a question line (starts with number or Q)
+                # Check if it's a question line (starts with number or Q or प्र)
                 is_question = len(paragraph) > 0 and (
                     (paragraph[0].isdigit() and '.' in paragraph[:5]) or
-                    paragraph.startswith('Q') and len(paragraph) > 1 and (paragraph[1].isdigit() or paragraph[1] == '.')
+                    paragraph.startswith('Q') and len(paragraph) > 1 and (paragraph[1].isdigit() or paragraph[1] == '.') or
+                    paragraph.startswith('प्र')
                 )
                 if is_question:
                     y -= 4
