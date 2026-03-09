@@ -1,0 +1,10 @@
+.page { padding: 32px; max-width: 1200px; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+.classRow { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.addForm { margin-bottom: 24px; animation: fadeIn 0.3s ease; }
+.formTitle { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.table { width: 100%; border-collapse: collapse; }
+.table th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--gray-400); padding: 10px 12px; border-bottom: 1px solid var(--gray-200); }
+.table td { padding: 14px 12px; font-size: 14px; color: var(--gray-700); border-bottom: 1px solid var(--gray-100); }
+.table tr:hover td { background: var(--gray-50); }

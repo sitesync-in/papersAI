@@ -1,0 +1,16 @@
+.page { padding: 32px; max-width: 1200px; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+.loading { padding: 48px; text-align: center; color: var(--gray-400); }
+.empty { padding: 64px; text-align: center; color: var(--gray-500); }
+.emptyIcon { font-size: 48px; margin-bottom: 12px; }
+.empty h3 { font-size: 18px; color: var(--gray-700); margin-bottom: 4px; }
+.table { width: 100%; border-collapse: collapse; }
+.table th {
+  text-align: left; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--gray-400); padding: 10px 12px;
+  border-bottom: 1px solid var(--gray-200);
+}
+.table td { padding: 14px 12px; font-size: 14px; color: var(--gray-700); border-bottom: 1px solid var(--gray-100); }
+.table tr:hover td { background: var(--gray-50); }
+.actions { display: flex; gap: 6px; }

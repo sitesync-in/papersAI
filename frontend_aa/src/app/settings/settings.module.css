@@ -1,0 +1,13 @@
+.page { padding: 32px; max-width: 800px; }
+.section { margin-bottom: 20px; }
+.sectionTitle { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--gray-800); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.success { background: rgba(46,125,50,0.08); color: var(--green); padding: 12px 16px; border-radius: var(--radius); margin-bottom: 20px; font-weight: 500; }
+.langRow { display: flex; justify-content: space-between; align-items: center; }
+.langBtns { display: flex; gap: 8px; }
+.langBtn {
+  padding: 8px 20px; border-radius: var(--radius); border: 2px solid var(--gray-200);
+  background: var(--white); font-weight: 600; font-size: 14px; cursor: pointer;
+  transition: var(--transition);
+}
+.langActive { border-color: var(--navy); background: var(--navy); color: var(--white); }

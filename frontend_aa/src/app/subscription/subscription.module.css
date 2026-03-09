@@ -1,0 +1,65 @@
+.page { padding: 32px; max-width: 1100px; }
+
+.walletCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  background: linear-gradient(135deg, var(--navy), var(--navy-light));
+  color: var(--white);
+}
+
+.walletLabel { font-size: 13px; opacity: 0.7; margin-bottom: 4px; }
+.walletAmount { font-size: 32px; font-weight: 800; }
+
+.plansGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.planCard {
+  position: relative;
+  text-align: center;
+  padding: 32px 24px;
+  transition: var(--transition);
+}
+
+.planHighlight {
+  border: 2px solid var(--gold);
+  transform: scale(1.02);
+}
+
+.recommended {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--gold);
+  color: var(--white);
+  padding: 4px 16px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.planName { font-size: 18px; font-weight: 700; color: var(--gray-800); margin-bottom: 6px; }
+.planDesc { font-size: 13px; color: var(--gray-500); margin-bottom: 16px; }
+
+.planPrice { margin-bottom: 20px; }
+.priceMain { font-size: 36px; font-weight: 800; color: var(--navy); }
+.priceSub { font-size: 14px; color: var(--gray-500); }
+
+.features {
+  list-style: none;
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.features li {
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--gray-600);
+}
+
+.planBtn { width: 100%; }
