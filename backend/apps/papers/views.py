@@ -126,8 +126,8 @@ class PaperGenerateView(APIView):
                 branch=paper.branch,
                 semester=paper.semester,
             )
-            paper.paper_text = result.get('paper', '')
-            paper.answer_key_text = result.get('answer_key', '')
+            paper.paper_text = result.get('paper_text', '')
+            paper.answer_key_text = result.get('answer_key_text', '')
             paper.status = Paper.STATUS_READY
             paper.save()
             wallet.balance -= 1
