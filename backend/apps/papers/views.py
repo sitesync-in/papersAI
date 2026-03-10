@@ -82,7 +82,7 @@ class CurriculumOptionsView(APIView):
         return Response({'error': f'Board {board} not found'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-
+class PaperGenerateView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
