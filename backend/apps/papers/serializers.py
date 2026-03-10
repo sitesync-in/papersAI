@@ -25,3 +25,5 @@ class PaperGenerateSerializer(serializers.Serializer):
     topics = serializers.CharField(required=False, allow_blank=True, default='')
     adhere_marking_scheme = serializers.BooleanField(default=True)
     preferred_language = serializers.ChoiceField(choices=['en', 'hi'], required=False)
+    branch = serializers.CharField(required=False, allow_blank=True, max_length=50, help_text='RTU Branch (e.g., CSE)')
+    semester = serializers.CharField(required=False, allow_blank=True, max_length=20, help_text='RTU Semester')

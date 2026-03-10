@@ -27,12 +27,101 @@ function GenerateContent() {
   const [error, setError] = useState('');
   const [paperLanguage, setPaperLanguage] = useState(user?.preferred_language || 'en');
 
+  // RTU-specific states
+  const [rtuBranch, setRtuBranch] = useState('');
+  const [rtuSemester, setRtuSemester] = useState('');
+  const [rtuBranches, setRtuBranches] = useState<any[]>([]);
+  const [rtuSemesters, setRtuSemesters] = useState<any[]>([]);
+  const [rtuSubjects, setRtuSubjects] = useState<any[]>([]);
+  const [loadingRtuData, setLoadingRtuData] = useState(false);
+
   // If user loads later, override initial state
   useEffect(() => {
     if (user?.preferred_language && paperLanguage === 'en') {
       setPaperLanguage(user.preferred_language);
     }
   }, [user]);
+
+  // Fetch RTU branches when board is RTU
+  useEffect(() => {
+    if (board === 'RTU') {
+      fetchRtuBranches();
+      setRtuBranch('');
+      setRtuSemester('');
+      setClassVal('');
+      setSubject('');
+    }
+  }, [board]);
+
+  // Fetch RTU semesters when branch is selected
+  useEffect(() => {
+    if (board === 'RTU' && rtuBranch) {
+      fetchRtuSemesters(rtuBranch);
+      setRtuSemester('');
+      setSubject('');
+    }
+  }, [rtuBranch]);
+
+  // Fetch RTU subjects when semester is selected
+  useEffect(() => {
+    if (board === 'RTU' && rtuBranch && rtuSemester) {
+      fetchRtuSubjects(rtuBranch, rtuSemester);
+    }
+  }, [rtuSemester]);
+
+  const fetchRtuBranches = async () => {
+    setLoadingRtuData(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch('/api/papers/curriculum-options/?board=RTU', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.branches) {
+        setRtuBranches(data.branches);
+      }
+    } catch (err) {
+      console.error('Failed to fetch RTU branches:', err);
+    } finally {
+      setLoadingRtuData(false);
+    }
+  };
+
+  const fetchRtuSemesters = async (branch: string) => {
+    setLoadingRtuData(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`/api/papers/curriculum-options/?board=RTU&branch=${branch}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.semesters) {
+        setRtuSemesters(data.semesters);
+      }
+    } catch (err) {
+      console.error('Failed to fetch RTU semesters:', err);
+    } finally {
+      setLoadingRtuData(false);
+    }
+  };
+
+  const fetchRtuSubjects = async (branch: string, semester: string) => {
+    setLoadingRtuData(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`/api/papers/curriculum-options/?board=RTU&branch=${branch}&semester=${semester}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.subjects) {
+        setRtuSubjects(data.subjects);
+      }
+    } catch (err) {
+      console.error('Failed to fetch RTU subjects:', err);
+    } finally {
+      setLoadingRtuData(false);
+    }
+  };
 
   const steps = [
     { num: 1, label: 'Curriculum' },
@@ -60,11 +149,19 @@ function GenerateContent() {
     }
 
     try {
-      const result = await papersAPI.generate({
+      const payload: any = {
         board, class_name: classVal, subject,
         difficulty, topics, adhere_marking_scheme: adhereScheme,
         preferred_language: paperLanguage,
-      });
+      };
+
+      // Add RTU-specific fields if applicable
+      if (board === 'RTU') {
+        payload.branch = rtuBranch;
+        payload.semester = rtuSemester;
+      }
+
+      const result = await papersAPI.generate(payload);
       setPaper(result);
       setStep(4);
     } catch (err: any) {
@@ -165,29 +262,70 @@ function GenerateContent() {
               </div>
             </div>
 
-            <div className={styles.formRow}>
-              <div className={styles.formField}>
-                <label className="label">Class</label>
-                <select className="input-field" value={classVal} onChange={e => setClassVal(e.target.value)}>
-                  <option value="">Select Class / Semester</option>
-                  {['Class 6','Class 7','Class 8','Class 9','Class 10','Class 11','Class 12'].map(c =>
-                    <option key={c} value={c}>{c}</option>
-                  )}
-                </select>
+            {/* RTU-specific selectors */}
+            {board === 'RTU' ? (
+              <div className={styles.formRow}>
+                <div className={styles.formField}>
+                  <label className="label">Branch</label>
+                  <select className="input-field" value={rtuBranch} onChange={e => setRtuBranch(e.target.value)} disabled={loadingRtuData}>
+                    <option value="">Select Branch</option>
+                    {rtuBranches.map(b => (
+                      <option key={b.code} value={b.code}>{b.code} - {b.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {rtuBranch && (
+                  <div className={styles.formField}>
+                    <label className="label">Semester</label>
+                    <select className="input-field" value={rtuSemester} onChange={e => setRtuSemester(e.target.value)} disabled={loadingRtuData}>
+                      <option value="">Select Semester</option>
+                      {rtuSemesters.map(s => (
+                        <option key={s.semester} value={s.semester}>Semester {s.semester} ({s.totalCredits} Credits)</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {rtuSemester && (
+                  <div className={styles.formField}>
+                    <label className="label">Subject</label>
+                    <select className="input-field" value={subject} onChange={e => setSubject(e.target.value)} disabled={loadingRtuData}>
+                      <option value="">Select Subject</option>
+                      {rtuSubjects.map(s => (
+                        <option key={s.name} value={s.name}>{s.name} ({s.credits} credits)</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
-              <div className={styles.formField}>
-                <label className="label">Subject</label>
-                <select className="input-field" value={subject} onChange={e => setSubject(e.target.value)}>
-                  <option value="">Select Subject</option>
-                  {['Mathematics','Science','Hindi','English','Social Science','Physics','Chemistry','Biology','Computer Science'].map(s =>
-                    <option key={s} value={s}>{s}</option>
-                  )}
-                </select>
+            ) : (
+              /* RBSE/CBSE standard selectors */
+              <div className={styles.formRow}>
+                <div className={styles.formField}>
+                  <label className="label">Class</label>
+                  <select className="input-field" value={classVal} onChange={e => setClassVal(e.target.value)}>
+                    <option value="">Select Class / Semester</option>
+                    {['Class 6','Class 7','Class 8','Class 9','Class 10','Class 11','Class 12'].map(c =>
+                      <option key={c} value={c}>{c}</option>
+                    )}
+                  </select>
+                </div>
+                <div className={styles.formField}>
+                  <label className="label">Subject</label>
+                  <select className="input-field" value={subject} onChange={e => setSubject(e.target.value)}>
+                    <option value="">Select Subject</option>
+                    {['Mathematics','Science','Hindi','English','Social Science','Physics','Chemistry','Biology','Computer Science'].map(s =>
+                      <option key={s} value={s}>{s}</option>
+                    )}
+                  </select>
+                </div>
               </div>
-            </div>
+            )}
 
             <button className="btn btn-primary" style={{ marginTop: '16px' }}
-              onClick={() => setStep(2)} disabled={!classVal || !subject}>
+              onClick={() => setStep(2)} 
+              disabled={board === 'RTU' ? !rtuBranch || !rtuSemester || !subject : !classVal || !subject}>
               Next →
             </button>
           </div>

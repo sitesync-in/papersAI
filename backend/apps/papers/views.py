@@ -10,10 +10,79 @@ from drf_spectacular.utils import extend_schema
 from .models import Paper
 from .serializers import PaperListSerializer, PaperDetailSerializer, PaperGenerateSerializer
 from .gemini_service import generate_paper
+from .curriculum import RTU_BRANCHES, RBSE_CBSE_CLASSES, RBSE_CBSE_SUBJECTS
 from apps.subscriptions.models import CreditWallet
 
 
-class PaperGenerateView(APIView):
+class CurriculumOptionsView(APIView):
+    """Get curriculum options (branches, semesters, subjects) based on board selection"""
+    
+    @extend_schema(
+        summary='Get curriculum options for a board',
+        tags=['Papers'],
+        parameters=[
+            {'name': 'board', 'in': 'query', 'required': True, 'schema': {'type': 'string'}, 'description': 'Board name (RBSE, RTU, CBSE)'},
+            {'name': 'branch', 'in': 'query', 'required': False, 'schema': {'type': 'string'}, 'description': 'Branch for RTU (e.g., CSE)'},
+            {'name': 'semester', 'in': 'query', 'required': False, 'schema': {'type': 'string'}, 'description': 'Semester for RTU'},
+        ]
+    )
+    def get(self, request):
+        board = request.query_params.get('board', 'RBSE')
+        branch = request.query_params.get('branch')
+        semester = request.query_params.get('semester')
+        
+        if board == 'RTU':
+            # Get RTU curriculum data
+            if not branch:
+                # Return list of branches
+                branches = list(RTU_BRANCHES.keys())
+                return Response({
+                    'branches': [{'code': code, 'name': data['name']} for code, data in RTU_BRANCHES.items()]
+                })
+            
+            if branch not in RTU_BRANCHES:
+                return Response({'error': f'Branch {branch} not found'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if not semester:
+                # Return list of semesters for the branch
+                branch_data = RTU_BRANCHES[branch]
+                semesters = [
+                    {'semester': data['semester'], 'totalCredits': data['totalCredits']}
+                    for data in sorted(branch_data['semesters'].values(), key=lambda x: x['semester'])
+                ]
+                return Response({'semesters': semesters})
+            
+            if semester not in RTU_BRANCHES[branch]['semesters']:
+                return Response({'error': f'Semester {semester} not found'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Return subjects for the semester
+            semester_data = RTU_BRANCHES[branch]['semesters'][semester]
+            subjects = [
+                {'name': name, 'credits': credits}
+                for name, credits in semester_data['subjects'].items()
+            ]
+            return Response({
+                'subjects': subjects,
+                'totalCredits': semester_data['totalCredits']
+            })
+        
+        elif board in ['RBSE', 'CBSE']:
+            # Get standard class/subject structure
+            classes = list(RBSE_CBSE_CLASSES.keys())
+            if not branch:  # branch parameter used for class_name for RBSE/CBSE
+                return Response({'classes': classes})
+            
+            class_name = branch
+            if class_name in RBSE_CBSE_SUBJECTS:
+                subjects = RBSE_CBSE_SUBJECTS[class_name]
+                return Response({'subjects': subjects})
+            
+            return Response({'error': f'Class {class_name} not found'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({'error': f'Board {board} not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
@@ -39,6 +108,8 @@ class PaperGenerateView(APIView):
             difficulty=data.get('difficulty', 'balanced'),
             topics=data.get('topics', ''),
             adhere_marking_scheme=data.get('adhere_marking_scheme', True),
+            branch=data.get('branch'),
+            semester=data.get('semester'),
             status=Paper.STATUS_GENERATING,
         )
 

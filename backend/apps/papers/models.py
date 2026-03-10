@@ -33,6 +33,9 @@ class Paper(models.Model):
     topics = models.TextField(blank=True, help_text='Comma separated custom topics')
     adhere_marking_scheme = models.BooleanField(default=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    # RTU-specific fields
+    branch = models.CharField(max_length=50, blank=True, null=True, help_text='RTU Branch (e.g., CSE, ECE)')
+    semester = models.CharField(max_length=20, blank=True, null=True, help_text='RTU Semester (e.g., 1, 2, 3)')
 
     # Generated content
     paper_content = models.JSONField(null=True, blank=True)
