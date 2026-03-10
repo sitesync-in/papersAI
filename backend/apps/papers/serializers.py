@@ -19,7 +19,7 @@ class PaperDetailSerializer(serializers.ModelSerializer):
 
 class PaperGenerateSerializer(serializers.Serializer):
     board = serializers.ChoiceField(choices=['RBSE', 'RTU', 'CBSE'])
-    class_name = serializers.CharField(max_length=30)
+    class_name = serializers.CharField(max_length=30, required=False, allow_blank=True)
     subject = serializers.CharField(max_length=100)
     difficulty = serializers.ChoiceField(choices=['easy', 'balanced', 'hard'], default='balanced')
     topics = serializers.CharField(required=False, allow_blank=True, default='')

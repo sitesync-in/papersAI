@@ -22,12 +22,27 @@ async function apiFetch<T>(endpoint: string, options: FetchOptions = {}): Promis
   const res = await fetch(`${API_URL}${endpoint}`, { headers, ...rest });
 
   if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
+    let errorData = {};
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        errorData = await res.json();
+      } catch (e) {
+        errorData = { detail: 'Unknown error' };
+      }
+    } else {
+      errorData = { detail: `HTTP ${res.status}: ${res.statusText}` };
+    }
     throw { status: res.status, ...errorData };
   }
 
   if (res.status === 204) return {} as T;
-  return res.json();
+  
+  const contentType = res.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return res.json();
+  }
+  return {} as T;
 }
 
 // ========================= AUTH =========================
@@ -85,6 +100,12 @@ export interface DashboardStats {
 
 export const papersAPI = {
   generate: (data: PaperGeneratePayload) => apiFetch<PaperDetail>('/api/papers/generate/', { method: 'POST', body: JSON.stringify(data) }),
+  curriculumOptions: (board: string, branch?: string, semester?: string) => {
+    let url = `/api/papers/curriculum-options/?board=${board}`;
+    if (branch) url += `&branch=${branch}`;
+    if (semester) url += `&semester=${semester}`;
+    return apiFetch<any>(url);
+  },
   list: () => apiFetch<{ results: PaperListItem[] }>('/api/papers/'),
   detail: (id: number) => apiFetch<PaperDetail>(`/api/papers/${id}/`),
   downloadUrl: (id: number) => `${API_URL}/api/papers/${id}/download/`,

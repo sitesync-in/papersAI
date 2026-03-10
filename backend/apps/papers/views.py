@@ -16,6 +16,7 @@ from apps.subscriptions.models import CreditWallet
 
 class CurriculumOptionsView(APIView):
     """Get curriculum options (branches, semesters, subjects) based on board selection"""
+    permission_classes = [IsAuthenticated]
     
     @extend_schema(
         summary='Get curriculum options for a board',
@@ -27,59 +28,62 @@ class CurriculumOptionsView(APIView):
         ]
     )
     def get(self, request):
-        board = request.query_params.get('board', 'RBSE')
-        branch = request.query_params.get('branch')
-        semester = request.query_params.get('semester')
-        
-        if board == 'RTU':
-            # Get RTU curriculum data
-            if not branch:
-                # Return list of branches
-                branches = list(RTU_BRANCHES.keys())
+        try:
+            board = request.query_params.get('board', 'RBSE')
+            branch = request.query_params.get('branch')
+            semester = request.query_params.get('semester')
+            
+            if board == 'RTU':
+                # Get RTU curriculum data
+                if not branch:
+                    # Return list of branches
+                    branches = list(RTU_BRANCHES.keys())
+                    return Response({
+                        'branches': [{'code': code, 'name': data['name']} for code, data in RTU_BRANCHES.items()]
+                    })
+                
+                if branch not in RTU_BRANCHES:
+                    return Response({'error': f'Branch {branch} not found'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                if not semester:
+                    # Return list of semesters for the branch
+                    branch_data = RTU_BRANCHES[branch]
+                    semesters = [
+                        {'semester': data['semester'], 'totalCredits': data['totalCredits']}
+                        for data in sorted(branch_data['semesters'].values(), key=lambda x: x['semester'])
+                    ]
+                    return Response({'semesters': semesters})
+                
+                if semester not in RTU_BRANCHES[branch]['semesters']:
+                    return Response({'error': f'Semester {semester} not found'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Return subjects for the semester
+                semester_data = RTU_BRANCHES[branch]['semesters'][semester]
+                subjects = [
+                    {'name': name, 'credits': credits}
+                    for name, credits in semester_data['subjects'].items()
+                ]
                 return Response({
-                    'branches': [{'code': code, 'name': data['name']} for code, data in RTU_BRANCHES.items()]
+                    'subjects': subjects,
+                    'totalCredits': semester_data['totalCredits']
                 })
             
-            if branch not in RTU_BRANCHES:
-                return Response({'error': f'Branch {branch} not found'}, status=status.HTTP_400_BAD_REQUEST)
+            elif board in ['RBSE', 'CBSE']:
+                # Get standard class/subject structure
+                classes = list(RBSE_CBSE_CLASSES.keys())
+                if not branch:  # branch parameter used for class_name for RBSE/CBSE
+                    return Response({'classes': classes})
+                
+                class_name = branch
+                if class_name in RBSE_CBSE_SUBJECTS:
+                    subjects = RBSE_CBSE_SUBJECTS[class_name]
+                    return Response({'subjects': subjects})
+                
+                return Response({'error': f'Class {class_name} not found'}, status=status.HTTP_400_BAD_REQUEST)
             
-            if not semester:
-                # Return list of semesters for the branch
-                branch_data = RTU_BRANCHES[branch]
-                semesters = [
-                    {'semester': data['semester'], 'totalCredits': data['totalCredits']}
-                    for data in sorted(branch_data['semesters'].values(), key=lambda x: x['semester'])
-                ]
-                return Response({'semesters': semesters})
-            
-            if semester not in RTU_BRANCHES[branch]['semesters']:
-                return Response({'error': f'Semester {semester} not found'}, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Return subjects for the semester
-            semester_data = RTU_BRANCHES[branch]['semesters'][semester]
-            subjects = [
-                {'name': name, 'credits': credits}
-                for name, credits in semester_data['subjects'].items()
-            ]
-            return Response({
-                'subjects': subjects,
-                'totalCredits': semester_data['totalCredits']
-            })
-        
-        elif board in ['RBSE', 'CBSE']:
-            # Get standard class/subject structure
-            classes = list(RBSE_CBSE_CLASSES.keys())
-            if not branch:  # branch parameter used for class_name for RBSE/CBSE
-                return Response({'classes': classes})
-            
-            class_name = branch
-            if class_name in RBSE_CBSE_SUBJECTS:
-                subjects = RBSE_CBSE_SUBJECTS[class_name]
-                return Response({'subjects': subjects})
-            
-            return Response({'error': f'Class {class_name} not found'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        return Response({'error': f'Board {board} not found'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': f'Board {board} not found'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PaperGenerateView(APIView):
@@ -96,14 +100,14 @@ class PaperGenerateView(APIView):
 
         # Check credits
         wallet, _ = CreditWallet.objects.get_or_create(user=request.user)
-        if wallet.balance < 1:
+        if wallet.credits < 1:
             return Response({'error': 'Insufficient credits'}, status=status.HTTP_402_PAYMENT_REQUIRED)
 
         data = serializer.validated_data
         paper = Paper.objects.create(
             teacher=request.user,
             board=data['board'],
-            class_name=data['class_name'],
+            class_name=data.get('class_name', ''),
             subject=data['subject'],
             difficulty=data.get('difficulty', 'balanced'),
             topics=data.get('topics', ''),
@@ -130,7 +134,7 @@ class PaperGenerateView(APIView):
             paper.answer_key_text = result.get('answer_key_text', '')
             paper.status = Paper.STATUS_READY
             paper.save()
-            wallet.balance -= 1
+            wallet.credits -= 1
             wallet.save()
 
             return Response(PaperDetailSerializer(paper).data, status=status.HTTP_201_CREATED)

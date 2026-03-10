@@ -72,16 +72,13 @@ function GenerateContent() {
   const fetchRtuBranches = async () => {
     setLoadingRtuData(true);
     try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch('/api/papers/curriculum-options/?board=RTU', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await papersAPI.curriculumOptions('RTU');
       if (data.branches) {
         setRtuBranches(data.branches);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch RTU branches:', err);
+      setError(err?.detail || 'Failed to load branches');
     } finally {
       setLoadingRtuData(false);
     }
@@ -90,16 +87,13 @@ function GenerateContent() {
   const fetchRtuSemesters = async (branch: string) => {
     setLoadingRtuData(true);
     try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(`/api/papers/curriculum-options/?board=RTU&branch=${branch}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await papersAPI.curriculumOptions('RTU', branch);
       if (data.semesters) {
         setRtuSemesters(data.semesters);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch RTU semesters:', err);
+      setError(err?.detail || 'Failed to load semesters');
     } finally {
       setLoadingRtuData(false);
     }
@@ -108,16 +102,13 @@ function GenerateContent() {
   const fetchRtuSubjects = async (branch: string, semester: string) => {
     setLoadingRtuData(true);
     try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(`/api/papers/curriculum-options/?board=RTU&branch=${branch}&semester=${semester}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await papersAPI.curriculumOptions('RTU', branch, semester);
       if (data.subjects) {
         setRtuSubjects(data.subjects);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch RTU subjects:', err);
+      setError(err?.detail || 'Failed to load subjects');
     } finally {
       setLoadingRtuData(false);
     }
