@@ -121,8 +121,10 @@ class PaperGenerateView(APIView):
                 subject=paper.subject,
                 difficulty=paper.difficulty,
                 topics=paper.topics,
-                adhere_scheme=paper.adhere_marking_scheme,
-                language=language,
+                adhere_marking_scheme=paper.adhere_marking_scheme,
+                preferred_language=language,
+                branch=paper.branch,
+                semester=paper.semester,
             )
             paper.paper_text = result.get('paper', '')
             paper.answer_key_text = result.get('answer_key', '')
